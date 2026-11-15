@@ -1,170 +1,281 @@
-## Table of Contents
+# PIPER - Water Leakage Detection System
 
-- [Leak Detection in Public Utility Networks using IoT and Machine Learning](#leak-detection-in-public-utility-networks-using-iot-and-machine-learning)
-  - [Repository Structure](#repository-structure)
-  - [Features](#features)
-  - [Getting Started](#getting-started)
-    - [1. Clone the Repository](#1-clone-the-repository)
-    - [2. Setup Virtual Environment \& Install Dependencies](#2-setup-virtual-environment--install-dependencies)
-    - [3. Run ML Algorithms](#3-run-ml-algorithms)
-      - [Classifier](#classifier)
-- [AWS SageMaker — Deployment Guide (No-Docker Deployment)](#aws-sagemaker--deployment-guide-no-docker-deployment)
-  - [Prerequisites](#prerequisites)
-  - [Deployment Tools Overview](#deployment-tools-overview)
-    - [1. `tools/sm_deploy_endpoint.py`](#1-toolssm_deploy_endpointpy)
-    - [2. `tools/sm_invoke_demo.py`](#2-toolssm_invoke_demopy)
-      - [What It Does](#what-it-does)
+A complete, locally runnable application for detecting water leakages in public utility networks using IoT sensor data and machine learning.
 
+## 🎯 Overview
 
-# Leak Detection in Public Utility Networks using IoT and Machine Learning
+PIPER (Pipeline Intelligence for Pipeline Event Recognition) provides a professional dashboard for monitoring and predicting water leaks in utility networks. The system uses a GRU (Gated Recurrent Unit) neural network trained on hourly water meter readings to classify whether a leak exists.
 
-The project focuses on detecting water leakages in supply networks using **sensor data** and **machine learning models**.  
-Two main tasks are addressed:
+### Key Features
 
-1. **Leak Classification** – detect whether a leak exists at a given time.  
-2. **Serving & Deployment** – packaging trained artifacts and deploying on **AWS SageMaker**.  
+- **Live Prediction** - Test the GRU model with sensor data windows
+- **Model Performance** - View cross-validated metrics (accuracy, precision, recall, F1, confusion matrix)
+- **Data Explorer** - Browse meter data and frozen test windows
+- **Batch Prediction** - Run predictions on the full test set
+- **Professional Dashboard** - Modern, responsive UI built with React + Tailwind CSS
 
+## 🏗️ Architecture
 
-## Repository Structure
-- `Algorithms/` # ML models (SVM, ANN, LSTM, GRU, RF, XGBoost)
-- `LeakageData/` # Sensor Data
-- `models/artifacts/` → inference-time bundles (weights, scaler, decision threshold, metadata).
-- `server/` → lightweight serving app (FastAPI/uvicorn style) + its **serving-only** requirements.
-- `tools/` → scripts to **deploy** and **invoke** a SageMaker endpoint.
-- `utils/` → data prep, CV, argument parsing, constants.
-- `requirements.txt` # Python dependencies
+```
+piperApp/
+├── backend/                 # FastAPI backend server
+│   ├── main.py             # FastAPI app with REST endpoints
+│   ├── model_loader.py     # GRU model loading & inference
+│   ├── data_service.py     # Test data access
+│   ├── schemas.py          # Pydantic request/response models
+│   └── requirements.txt    # Python dependencies
+├── frontend/               # React + TypeScript + Vite frontend
+│   ├── src/
+│   │   ├── components/     # Reusable UI components
+│   │   ├── pages/          # Page components
+│   │   ├── hooks/          # Custom React hooks
+│   │   ├── api/            # API client
+│   │   └── types/          # TypeScript types
+│   └── package.json
+├── models/                 # Trained model artifacts
+│   ├── gru_cls.pt          # GRU model weights
+│   ├── gru_cls_scaler.joblib  # Feature scaler
+│   ├── gru_cls_meta.json   # Model metadata
+│   └── artifacts/
+│       └── test_agg.parquet # Frozen test set
+├── LeakageData/            # Raw meter CSV data
+├── Algorithms/             # Training scripts (GRU, LSTM, MLP, RF, SVM, XGBoost)
+├── utils/                  # Data processing utilities
+├── start_piper.bat         # Windows startup script
+└── .env.example            # Environment configuration template
+```
 
-## Features
-- **Data Preprocessing**: Aggregation, feature engineering, rolling statistics, missing data handling.  
-- **Classification Models**: SVM, Random Forest, XGBoost, Artificial Neural Networks.  
-- **Time Series Forecasting**: LSTM, GRU, baseline regressors.  
-- **Evaluation Metrics**:  
-  - Classification: Accuracy, Precision, Recall, F1, Confusion Matrix.  
-- **Deployment-ready**: Models can be exported for **AWS SageMaker**.  
+## 🚀 Quick Start (Windows)
 
-## Getting Started
+### Prerequisites
 
-### 1. Clone the Repository
-```bash
+- **Python 3.10+** with `venv` module
+- **Node.js 18+** with `npm`
+- **Git** (for cloning)
+
+### Option 1: Automated Startup (Recommended)
+
+```cmd
+# Clone the repository
 git clone https://github.com/ApoErch/Water-Leakage-Detection.git
 cd Water-Leakage-Detection
+
+# Run the startup script (installs deps, starts both servers)
+start_piper.bat
 ```
-### 2. Setup Virtual Environment & Install Dependencies
-```bash
+
+This will:
+1. Create a Python virtual environment (`.venv`)
+2. Install backend dependencies
+3. Install frontend dependencies
+4. Start the backend on `http://localhost:8000`
+5. Start the frontend on `http://localhost:3000`
+
+### Option 2: Manual Setup
+
+**Backend:**
+```cmd
+# Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate   # On Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+.venv\Scripts\activate
+
+# Install dependencies
+pip install -r backend/requirements.txt
+
+# Start backend server
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 3. Run ML Algorithms
-#### Classifier
-```bash
-python -m Algorithms.Lstm
+**Frontend (in a new terminal):**
+```cmd
+cd frontend
+npm install
+npm run dev -- --host 127.0.0.1 --port 3000
+```
+
+## 📡 API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/v1/health` | Health check |
+| GET | `/api/v1/model/info` | Model metadata & configuration |
+| POST | `/api/v1/predict` | Single/multi-window prediction |
+| POST | `/api/v1/predict/batch` | Batch prediction on test set |
+| GET | `/api/v1/meters` | List available meters |
+| GET | `/api/v1/data/sample` | Get sample test windows |
+
+### Prediction Request Format
+
+```json
+{
+  "windows": [[[f1, f2, ..., f9], ... 48 steps ...]],  // [B, 48, 9]
+  "feature_cols": ["Hour", "DayOfWeek", "Month", "roll6_mean", "roll24_mean", "roll6_std", "roll24_std", "rel_to_roll24", "Delta_Volume"],
+  "thr": 0.68
+}
+```
+
+### Prediction Response
+
+```json
+{
+  "probs": [0.847],      // Leak probability per window
+  "preds": [1],          // Binary prediction (0=no leak, 1=leak)
+  "thr": 0.68            // Threshold used
+}
+```
+
+## 🎨 Frontend Pages
+
+| Page | Route | Description |
+|------|-------|-------------|
+| Dashboard | `/` | System overview, quick stats, recent predictions |
+| Live Prediction | `/predict` | Test model with manual/sample/JSON input |
+| Model Performance | `/performance` | Metrics, confusion matrix, feature list |
+| Data Explorer | `/data` | Browse meters, view test windows |
+| Settings | `/settings` | System configuration |
+| Help | `/help` | FAQs, API reference, quick guides |
+
+## 🔬 Model Details
+
+- **Architecture**: GRUHead (2-layer GRU, 64 hidden units, unidirectional)
+- **Input**: 48-hour windows × 9 features
+- **Features**: Hour, DayOfWeek, Month, roll6_mean, roll24_mean, roll6_std, roll24_std, rel_to_roll24, Delta_Volume
+- **Threshold**: ~0.68 (F1-optimal via 10-fold forward-chaining CV)
+- **Training**: Synthetic leak injection, per-meter time-aware splits
+- **Artifacts**: `gru_cls.pt`, `gru_cls_scaler.joblib`, `gru_cls_meta.json`
+
+## 🛠️ Development
+
+### Backend Development
+
+```cmd
+# Activate venv
+.venv\Scripts\activate
+
+# Run with auto-reload
+python -m uvicorn backend.main:app --reload
+
+# API docs available at http://localhost:8000/docs
+```
+
+### Frontend Development
+
+```cmd
+cd frontend
+npm run dev -- --host 127.0.0.1 --port 3000   # Development server
+npm run build      # Production build
+npm run preview    # Preview production build
+npm run lint       # ESLint check
+```
+
+### Training Models
+
+The repository includes training scripts for multiple algorithms:
+
+```cmd
+# Activate venv
+.venv\Scripts\activate
+
+# Train GRU (default params)
 python -m Algorithms.Gru
+
+# Train with custom params
+python -m Algorithms.Gru --window 48 --hidden 128 --num_layers 2 --max_epochs 20
+
+# Hyperparameter tuning with Optuna
+python -m tools.tune_optuna --algos gru,lstm,rf --trials 50
 ```
 
-# AWS SageMaker — Deployment Guide (No-Docker Deployment)
+## 📦 Deployment
 
-- You **do not** build any container. You can upload your `model.tar.gz` to S3 and deploy with SageMaker’s **prebuilt PyTorch** image (Script Mode).
-- The steps below package your **trained classifier artifacts** and deploy a real-time HTTPS endpoint on **AWS SageMaker**.
+### Production Build
 
-##  Prerequisites
+```cmd
+# Build frontend
+cd frontend
+npm run build
 
-```bash
-aws configure  # set region (e.g., eu-central-1) and credentials
-```
-- Have an IAM Role ARN with SageMaker permissions, e.g.: `arn:aws:iam::<ACCOUNT_ID>:role/SageMakerExecutionRole`
-- Package model artifacts
-```bash
-tar -czf models/model.tar.gz \
--C models/artifacts . \
--C ../<inference directory> inference.py
+# The dist/ folder contains production-ready static files
+# Serve with nginx, Apache, or any static file server
 ```
 
-## Deployment Tools Overview
+### Docker (Optional)
 
-The repository includes two helper scripts in the `tools/` directory for automating **AWS SageMaker deployment** and **endpoint testing**.
+```dockerfile
+# Backend
+FROM python:3.11-slim
+WORKDIR /app
+COPY backend/requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 8000
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
+# Frontend (multi-stage)
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ .
+RUN npm run build
 
-### 1. `tools/sm_deploy_endpoint.py`
-
-This script **uploads** your packaged model (`model.tar.gz`) to S3 and **creates a SageMaker endpoint** using AWS’s prebuilt PyTorch serving container.
-
-**Main steps performed:**
-1. **Upload artifacts to S3**
-   - Takes your `model.tar.gz` (which must include trained model files).
-   - Uploads it to a designated S3 bucket/prefix.
-2. **Configure the SageMaker model**
-   - Uses `PyTorchModel` from the SageMaker SDK.
-   - Automatically sets up the environment (e.g., `THR_OVERRIDE` if you want to override the leak detection threshold).
-3. **Deploy the endpoint**
-   - Can deploy either as:
-     - A **provisioned instance** (`ml.m5.large`, etc.) for steady workloads.
-     - Or a **serverless endpoint** (on-demand, scales to zero) using `--serverless`.
-4. **Prints the created endpoint name** when successful.
-
-**Usage example:**
-```bash
-python tools/sm_deploy_endpoint.py \
---model_tar models/model.tar.gz \
---s3_bucket my-ml-bucket \
---role_arn arn:aws:iam::<ACCOUNT_ID>:role/SageMakerExecutionRole \
---endpoint_name leak-gru-endpoint \
---region eu-central-1 \
---serverless
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
 ```
 
+## 📊 Data Pipeline
 
-### 2. `tools/sm_invoke_demo.py`
+The system uses a sophisticated data pipeline:
 
-This script is used to **test and validate** your deployed SageMaker endpoint end-to-end.
+1. **CSV Loading** - Multi-meter hourly readings
+2. **Gap Imputation** - Conservative step-preserving fill
+3. **Feature Engineering** - Calendar, rolling stats, deltas
+4. **Leak Synthesis** - Realistic progressive leak injection
+5. **Time-Aware Split** - Per-meter forward-chaining
+6. **Scaling** - StandardScaler fit on train only
+7. **Windowing** - Sliding windows for sequence models
+8. **CV Threshold** - F1-optimal per fold, median across folds
 
-After you’ve deployed your leak detection model using `tools/sm_deploy_endpoint.py`, this tool sends a few **sample data windows** (sensor readings) to the endpoint and prints the predictions.
+## ⚙️ Configuration
 
-####  What It Does
+Copy `.env.example` to `.env` and adjust:
 
-1. **Loads model metadata**  
-   - Reads the file `gru_cls_meta.json` from `models/artifacts/` to extract:
-     - The **feature order** used during training.
-     - The **window size** (number of timesteps per prediction).
-     - The **threshold** used to classify leak vs. no-leak.
-
-2. **Loads frozen test data**  
-   - Opens a Parquet test file (e.g., `test_agg.parquet`) that contains sensor readings identical to the format used during training.
-   - Ensures feature columns, meter IDs, and timestamps are consistent.
-
-3. **Builds sliding windows**  
-   - Converts time-series sensor data into 3D input arrays:  
-     `[num_windows, window_length, num_features]`.  
-   - Each window represents a short historical sequence of sensor readings for one meter.
-
-4. **Selects a small, balanced sample**  
-   - Randomly picks a few windows (using `--n`) with both leak (`1`) and no-leak (`0`) cases.
-   - This helps verify that the endpoint is returning meaningful results.
-
-5. **Invokes the SageMaker endpoint**  
-   - Uses the AWS **boto3** client (`sagemaker-runtime`) to send a JSON payload containing:
-     - the input windows (`windows`)
-     - the feature names (`feature_cols`)
-     - and an optional threshold override (`thr`)
-   - Calls the endpoint you specify via `--endpoint_name`.
-
-6. **Prints results clearly**  
-   - Displays:
-     - `Meter_ID`
-     - `Timestamp_end` (last timestamp in the window)
-     - `y_true` (ground truth label)
-     - `prob` (predicted leak probability)
-     - `pred` (final leak prediction)
-   - Calculates the **sample accuracy** for the test windows.
-
-
-**Usage example:**
-```bash
-python tools/sm_invoke_demo.py \
---endpoint_name leak-gru-endpoint \
---region eu-central-1 \
---meta_path models/artifacts/gru_cls_meta.json \
---test_path models/artifacts/test_agg.parquet \
---n 4
+```env
+VITE_API_URL=http://localhost:8000/api/v1
+MODELS_DIR=../models
+DATA_DIR=../LeakageData
+THR_OVERRIDE=0.68
+HOST=0.0.0.0
+PORT=8000
+FRONTEND_PORT=3000
 ```
+
+## 📝 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
+
+## 📚 References
+
+- Original research: Leak Detection in Public Utility Networks using IoT and Machine Learning
+- Repository: https://github.com/ApoErch/Water-Leakage-Detection
+- SageMaker Deployment Guide: See README section on AWS SageMaker
+
+## ⚠️ Important Notes
+
+- **Only the GRU model is served** via the API (LSTM trained but no serving code)
+- **Synthetic leaks** are used for training (no real leak labels in raw data)
+- **Frozen test set** ensures reproducible batch predictions
+- **No SHAP/explainability** implemented in current version
+- **No real-time ingestion** - this is a batch prediction system
+
+---
+
+**Built with**: FastAPI, React 18, TypeScript, Vite, Tailwind CSS, Recharts, PyTorch
