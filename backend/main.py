@@ -33,7 +33,7 @@ DATA_DIR = Path(__file__).parent.parent / "LeakageData"
 API_PREFIX = "/api/v1"
 
 # Default model to use
-DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL", "gru")
+DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL", "lstm")
 
 
 @asynccontextmanager
