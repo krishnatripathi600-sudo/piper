@@ -6,6 +6,7 @@ import { Performance } from '@/pages/Performance'
 import { DataExplorer } from '@/pages/DataExplorer'
 import { Settings } from '@/pages/Settings'
 import { Help } from '@/pages/Help'
+import { Replay } from '@/pages/Replay'
 
 export function App() {
   return (
@@ -13,6 +14,7 @@ export function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<Dashboard />} />
         <Route path="predict" element={<Predict />} />
+        <Route path="replay" element={<Replay />} />
         <Route path="performance" element={<Performance />} />
         <Route path="data" element={<DataExplorer />} />
         <Route path="settings" element={<Settings />} />

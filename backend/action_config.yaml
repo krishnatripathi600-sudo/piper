@@ -1,0 +1,303 @@
+# Action Rules Configuration for PIPER Leak Detection
+# Rules are evaluated in order; first match wins
+
+version: "1.0"
+description: "Maps leak probability and degradation to operational actions"
+
+# Probability thresholds for leak classification
+probability_tiers:
+  - name: "CRITICAL"
+    min_prob: 0.90
+    max_prob: 1.00
+    priority: 1
+    color: "red"
+    label: "Critical Leak - Emergency"
+    
+  - name: "HIGH"
+    min_prob: 0.75
+    max_prob: 0.90
+    priority: 2
+    color: "orange"
+    label: "High Confidence Leak"
+    
+  - name: "MEDIUM"
+    min_prob: 0.60
+    max_prob: 0.75
+    priority: 3
+    color: "yellow"
+    label: "Probable Leak"
+    
+  - name: "LOW"
+    min_prob: 0.40
+    max_prob: 0.60
+    priority: 4
+    color: "blue"
+    label: "Suspected Anomaly"
+    
+  - name: "NORMAL"
+    min_prob: 0.00
+    max_prob: 0.40
+    priority: 5
+    color: "green"
+    label: "Normal Operations"
+
+# Degradation score thresholds (if available from model)
+degradation_tiers:
+  - name: "SEVERE"
+    min_score: 0.75
+    max_score: 1.00
+    label: "Severe Degradation"
+    
+  - name: "MODERATE"
+    min_score: 0.50
+    max_score: 0.75
+    label: "Moderate Degradation"
+    
+  - name: "MINOR"
+    min_score: 0.25
+    max_score: 0.50
+    label: "Minor Degradation"
+    
+  - name: "NONE"
+    min_score: 0.00
+    max_score: 0.25
+    label: "No Significant Degradation"
+
+# Action rules - evaluated in order, first match executes
+action_rules:
+  # CRITICAL LEAK + SEVERE DEGRADATION
+  - id: "CRITICAL_SEVERE"
+    condition:
+      leak_tier: "CRITICAL"
+      degradation_tier: "SEVERE"
+    actions:
+      immediate:
+        - "Dispatch emergency repair crew immediately"
+        - "Isolate affected network segment"
+        - "Activate emergency response protocol"
+        - "Notify water quality team for contamination risk"
+      short_term:
+        - "Schedule full pipe replacement within 48 hours"
+        - "Deploy temporary bypass if needed"
+        - "Conduct post-repair pressure testing"
+      notifications:
+        - "Operations Manager (immediate)"
+        - "Emergency Services (if public safety risk)"
+        - "Regulatory Compliance (within 2 hours)"
+      priority: "EMERGENCY"
+      sla_hours: 2
+      estimated_cost_tier: "HIGH"
+    simulated_response:
+      alert_type: "EMERGENCY_LEAK"
+      severity: "CRITICAL"
+      message: "CRITICAL LEAK DETECTED at Meter {{meter_id}} with {{probability:.1%}} probability and SEVERE degradation. Immediate isolation and emergency response required."
+      channels: ["SMS", "EMAIL", "SCADA_ALARM", "RADIO"]
+      auto_escalate_minutes: 5
+      acknowledgement_required: true
+      escalation_contact: "Operations Director"
+      template_id: "ALERT_CRITICAL_SEVERE"
+
+  # CRITICAL LEAK + MODERATE DEGRADATION
+  - id: "CRITICAL_MODERATE"
+    condition:
+      leak_tier: "CRITICAL"
+      degradation_tier: "MODERATE"
+    actions:
+      immediate:
+        - "Dispatch repair crew within 2 hours"
+        - "Isolate affected segment"
+        - "Increase monitoring frequency to 15-min intervals"
+      short_term:
+        - "Schedule pipe repair within 24 hours"
+        - "Assess need for pipe replacement vs repair"
+      notifications:
+        - "Operations Manager (within 1 hour)"
+        - "Maintenance Team (immediate)"
+      priority: "URGENT"
+      sla_hours: 4
+      estimated_cost_tier: "HIGH"
+    simulated_response:
+      alert_type: "CRITICAL_LEAK"
+      severity: "CRITICAL"
+      message: "CRITICAL LEAK DETECTED at Meter {{meter_id}} with {{probability:.1%}} probability and MODERATE degradation. Dispatch repair crew within 2 hours."
+      channels: ["SMS", "EMAIL", "SCADA_ALARM"]
+      auto_escalate_minutes: 15
+      acknowledgement_required: true
+      escalation_contact: "Operations Manager"
+      template_id: "ALERT_CRITICAL_MODERATE"
+
+  # CRITICAL LEAK (any other degradation)
+  - id: "CRITICAL_DEFAULT"
+    condition:
+      leak_tier: "CRITICAL"
+    actions:
+      immediate:
+        - "Dispatch inspection crew within 4 hours"
+        - "Isolate segment if pressure drop confirmed"
+      short_term:
+        - "Schedule repair within 24-48 hours"
+        - "Evaluate repair vs replacement"
+      notifications:
+        - "Operations Manager (within 2 hours)"
+      priority: "URGENT"
+      sla_hours: 8
+      estimated_cost_tier: "MEDIUM"
+    simulated_response:
+      alert_type: "CRITICAL_LEAK"
+      severity: "HIGH"
+      message: "CRITICAL LEAK DETECTED at Meter {{meter_id}} with {{probability:.1%}} probability. Dispatch inspection crew within 4 hours."
+      channels: ["SMS", "EMAIL", "SCADA_ALARM"]
+      auto_escalate_minutes: 30
+      acknowledgement_required: true
+      escalation_contact: "Operations Manager"
+      template_id: "ALERT_CRITICAL_DEFAULT"
+
+  # HIGH LEAK + SEVERE/MODERATE DEGRADATION
+  - id: "HIGH_DEGRADED"
+    condition:
+      leak_tier: "HIGH"
+      degradation_tier: ["SEVERE", "MODERATE"]
+    actions:
+      immediate:
+        - "Schedule inspection within 8 hours"
+        - "Increase monitoring to 30-min intervals"
+      short_term:
+        - "Plan repair within 48 hours"
+        - "Prepare replacement materials"
+      notifications:
+        - "Maintenance Supervisor (within 4 hours)"
+      priority: "HIGH"
+      sla_hours: 24
+      estimated_cost_tier: "MEDIUM"
+    simulated_response:
+      alert_type: "HIGH_CONFIDENCE_LEAK"
+      severity: "HIGH"
+      message: "HIGH CONFIDENCE LEAK at Meter {{meter_id}} with {{probability:.1%}} probability and {{degradation_tier}} degradation. Schedule inspection within 8 hours."
+      channels: ["SMS", "EMAIL"]
+      auto_escalate_minutes: 60
+      acknowledgement_required: true
+      escalation_contact: "Maintenance Supervisor"
+      template_id: "ALERT_HIGH_DEGRADED"
+
+  # HIGH LEAK (low/no degradation)
+  - id: "HIGH_DEFAULT"
+    condition:
+      leak_tier: "HIGH"
+    actions:
+      immediate:
+        - "Schedule inspection within 12 hours"
+        - "Increase monitoring to 1-hour intervals"
+      short_term:
+        - "Plan repair within 72 hours"
+      notifications:
+        - "Maintenance Team (next shift)"
+      priority: "HIGH"
+      sla_hours: 48
+      estimated_cost_tier: "MEDIUM"
+    simulated_response:
+      alert_type: "HIGH_CONFIDENCE_LEAK"
+      severity: "MEDIUM"
+      message: "HIGH CONFIDENCE LEAK at Meter {{meter_id}} with {{probability:.1%}} probability. Schedule inspection within 12 hours."
+      channels: ["EMAIL", "SCADA_ALARM"]
+      auto_escalate_minutes: 120
+      acknowledgement_required: false
+      escalation_contact: "Maintenance Team Lead"
+      template_id: "ALERT_HIGH_DEFAULT"
+
+  # MEDIUM LEAK
+  - id: "MEDIUM_LEAK"
+    condition:
+      leak_tier: "MEDIUM"
+    actions:
+      immediate:
+        - "Schedule inspection within 24 hours"
+        - "Increase monitoring to 2-hour intervals"
+      short_term:
+        - "Plan investigation within 5 days"
+        - "Correlate with historical data"
+      notifications:
+        - "Maintenance Planner (next business day)"
+      priority: "MEDIUM"
+      sla_hours: 72
+      estimated_cost_tier: "LOW"
+    simulated_response:
+      alert_type: "PROBABLE_LEAK"
+      severity: "MEDIUM"
+      message: "PROBABLE LEAK at Meter {{meter_id}} with {{probability:.1%}} probability. Schedule inspection within 24 hours."
+      channels: ["EMAIL"]
+      auto_escalate_minutes: 240
+      acknowledgement_required: false
+      escalation_contact: "Maintenance Planner"
+      template_id: "ALERT_MEDIUM_LEAK"
+
+  # LOW LEAK / SUSPECTED ANOMALY
+  - id: "LOW_SUSPECTED"
+    condition:
+      leak_tier: "LOW"
+    actions:
+      immediate:
+        - "Flag for enhanced monitoring"
+        - "Review at next scheduled inspection"
+      short_term:
+        - "Analyze trend over next 7 days"
+        - "Check for sensor calibration issues"
+      notifications:
+        - "Data Analyst (weekly review)"
+      priority: "LOW"
+      sla_hours: 168
+      estimated_cost_tier: "MINIMAL"
+    simulated_response:
+      alert_type: "SUSPECTED_ANOMALY"
+      severity: "LOW"
+      message: "SUSPECTED ANOMALY at Meter {{meter_id}} with {{probability:.1%}} probability. Flag for enhanced monitoring and trend analysis."
+      channels: ["EMAIL"]
+      auto_escalate_minutes: 720
+      acknowledgement_required: false
+      escalation_contact: "Data Analyst"
+      template_id: "ALERT_LOW_SUSPECTED"
+
+  # NORMAL OPERATIONS
+  - id: "NORMAL_OPERATIONS"
+    condition:
+      leak_tier: "NORMAL"
+    actions:
+      immediate:
+        - "Continue routine monitoring"
+      short_term:
+        - "No action required"
+      notifications: []
+      priority: "ROUTINE"
+      sla_hours: 720
+      estimated_cost_tier: "NONE"
+    simulated_response:
+      alert_type: "NORMAL_OPERATIONS"
+      severity: "INFO"
+      message: "NORMAL OPERATIONS at Meter {{meter_id}}. Probability: {{probability:.1%}}. No action required."
+      channels: []
+      auto_escalate_minutes: 0
+      acknowledgement_required: false
+      escalation_contact: "N/A"
+      template_id: "ALERT_NORMAL"
+
+  # Default fallback rule (should always match last)
+  - id: "DEFAULT_FALLBACK"
+    condition: {}
+    actions:
+      immediate:
+        - "Log for manual review"
+      short_term:
+        - "Analyze why no rule matched"
+      notifications:
+        - "System Administrator"
+      priority: "UNKNOWN"
+      sla_hours: 24
+      estimated_cost_tier: "UNKNOWN"
+    simulated_response:
+      alert_type: "UNKNOWN_RULE_MATCH"
+      severity: "WARNING"
+      message: "UNCLASSIFIED EVENT at Meter {{meter_id}} with {{probability:.1%}} probability. No matching rule found. Manual review required."
+      channels: ["EMAIL"]
+      auto_escalate_minutes: 60
+      acknowledgement_required: true
+      escalation_contact: "System Administrator"
+      template_id: "ALERT_FALLBACK"

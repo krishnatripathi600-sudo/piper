@@ -40,11 +40,36 @@ class PredictRequest(BaseModel):
     )
 
 
+class SimulatedResponse(BaseModel):
+    """Simulated alert/response that would be sent to operators."""
+    alert_type: str = Field(..., description="Type of alert: EMERGENCY_LEAK, CRITICAL_LEAK, HIGH_CONFIDENCE_LEAK, PROBABLE_LEAK, SUSPECTED_ANOMALY, NORMAL_OPERATIONS, UNKNOWN_RULE_MATCH")
+    severity: str = Field(..., description="Severity level: CRITICAL, HIGH, MEDIUM, LOW, INFO, WARNING")
+    message: str = Field(..., description="Human-readable alert message with template variables")
+    channels: List[str] = Field(default_factory=list, description="Delivery channels: SMS, EMAIL, SCADA_ALARM, RADIO")
+    auto_escalate_minutes: int = Field(..., description="Minutes before auto-escalation (0 = no auto-escalation)")
+    acknowledgement_required: bool = Field(..., description="Whether operator acknowledgement is required")
+    escalation_contact: str = Field(..., description="Role/contact for escalation")
+    template_id: str = Field(..., description="Template identifier for alert formatting")
+
+
+class ActionItem(BaseModel):
+    """Individual action item."""
+    immediate: List[str] = Field(default_factory=list, description="Immediate actions required")
+    short_term: List[str] = Field(default_factory=list, description="Short-term follow-up actions")
+    notifications: List[str] = Field(default_factory=list, description="Notification recipients")
+    priority: str = Field(..., description="Action priority: EMERGENCY, URGENT, HIGH, MEDIUM, LOW, ROUTINE, UNKNOWN")
+    sla_hours: int = Field(..., description="Service level agreement in hours")
+    estimated_cost_tier: str = Field(..., description="Estimated cost: HIGH, MEDIUM, LOW, MINIMAL, NONE, UNKNOWN")
+    simulated_response: Optional[SimulatedResponse] = Field(None, description="Simulated alert/response that would be sent")
+
+
 class PredictResponse(BaseModel):
     """Response payload for leak prediction."""
     probs: List[float] = Field(..., description="Leak probability per window [0, 1]")
     preds: List[int] = Field(..., description="Binary prediction per window (0=no leak, 1=leak)")
     thr: float = Field(..., description="Threshold used for prediction")
+    actions: Optional[List[ActionItem]] = Field(None, description="Recommended operational actions per window")
+    metadata: Optional[List[dict]] = Field(None, description="Additional metadata per window (tier info, rule matched, etc.)")
 
 
 class ModelInfoResponse(BaseModel):
@@ -114,6 +139,8 @@ class BatchPredictResult(BaseModel):
     y_true: int
     prob: float
     pred: int
+    actions: Optional[ActionItem] = Field(None, description="Recommended operational actions")
+    metadata: Optional[dict] = Field(None, description="Additional metadata (tier info, rule matched, etc.)")
 
 
 class BatchPredictResponse(BaseModel):
@@ -121,3 +148,21 @@ class BatchPredictResponse(BaseModel):
     results: List[BatchPredictResult]
     summary: dict
     thr_used: float
+
+
+class ModelInfo(BaseModel):
+    """Individual model information."""
+    name: str
+    loaded: bool
+    type: Optional[str] = None
+
+
+class ModelsListResponse(BaseModel):
+    """List of available models."""
+    models: List[ModelInfo]
+    default: str
+
+
+class ModelSwitchRequest(BaseModel):
+    """Request to switch default model."""
+    model_name: str

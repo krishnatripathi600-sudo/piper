@@ -4,6 +4,7 @@ import type {
   BatchPredictResponse,
   PredictRequest,
   PredictResponse,
+  ReplayWindow,
 } from '@/types/api'
 
 interface UseApiState<T> {
@@ -163,4 +164,46 @@ export function useBatchPredict() {
   }, [])
 
   return { ...state, predict }
+}
+
+// Replay Mode hook for live telemetry monitoring
+export function useReplay() {
+  const [state, setState] = useState<{
+    data: ReplayWindow[] | null
+    error: Error | null
+    isLoading: boolean
+    isRefreshing: boolean
+  }>({
+    data: null,
+    error: null,
+    isLoading: false,
+    isRefreshing: false,
+  })
+
+  // Fetch sample windows for replay
+  const loadReplayData = useCallback(async (n: number = 50, meterIds?: string[], seed: number = 42) => {
+    setState(prev => ({ ...prev, isLoading: true, error: null }))
+    try {
+      const data = await apiEndpoints.sampleWindows(n, meterIds, seed)
+      // Convert SampleWindow to ReplayWindow with additional fields
+      const replayWindows: ReplayWindow[] = data.windows.map((window) => ({
+        ...window,
+        probability: undefined,
+        prediction: undefined,
+        actions: undefined,
+        metadata: undefined,
+      }))
+      setState({ data: replayWindows, error: null, isLoading: false, isRefreshing: false })
+      return replayWindows
+    } catch (err) {
+      setState({ data: null, error: err as Error, isLoading: false, isRefreshing: false })
+      throw err
+    }
+  }, [])
+
+  return {
+    ...state,
+    loadReplayData,
+    refetch: () => loadReplayData(50), // default refetch
+  }
 }
