@@ -93,8 +93,46 @@ export interface BatchPredictResponse {
     actual_leaks: number
     correct_predictions: number
     accuracy: number
+    action_priority_distribution?: Record<string, number>
   }
   thr_used: number
+}
+
+// Replay Mode types
+export interface ReplayWindow extends SampleWindow {
+  probability?: number
+  prediction?: number
+  actions?: {
+    immediate: string[]
+    short_term: string[]
+    notifications: string[]
+    priority: string
+    sla_hours: number
+    estimated_cost_tier: string
+    simulated_response?: SimulatedResponse
+  }
+  metadata?: Record<string, unknown>
+}
+
+export interface SimulatedResponse {
+  alert_type: string
+  severity: string
+  message: string
+  channels: string[]
+  auto_escalate_minutes: number
+  acknowledgement_required: boolean
+  escalation_contact: string
+  template_id: string
+}
+
+export interface ReplayState {
+  isPlaying: boolean
+  speed: number
+  currentIndex: number
+  windows: ReplayWindow[]
+  results: ReplayWindow[]
+  currentWindow: ReplayWindow | null
+  intervalMs: number
 }
 
 export interface ApiError {
@@ -104,3 +142,19 @@ export interface ApiError {
 
 export type PredictionLabel = 'No Leak' | 'Leak'
 export type PredictionStatus = 'correct' | 'incorrect' | 'unknown'
+
+// SHAP Explainability types
+export interface SHAPExplainRequest {
+  windows: number[][][]
+  feature_cols?: string[]
+  method?: 'tree' | 'kernel'
+  max_samples?: number
+}
+
+export interface SHAPExplainResponse {
+  shap_values: number[][]
+  base_value: number
+  feature_names: string[]
+  data: number[][]
+  aggregated_importance: Record<string, number>
+}

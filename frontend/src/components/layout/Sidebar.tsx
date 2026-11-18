@@ -8,11 +8,13 @@ import {
   Settings,
   HelpCircle,
   X,
+  RotateCcw,
 } from 'lucide-react'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Live Prediction', href: '/predict', icon: Zap },
+  { name: 'Live Telemetry', href: '/replay', icon: RotateCcw },
   { name: 'Model Performance', href: '/performance', icon: BarChart2 },
   { name: 'Data Explorer', href: '/data', icon: Database },
   { name: 'Settings', href: '/settings', icon: Settings },

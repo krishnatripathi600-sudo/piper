@@ -8,6 +8,8 @@ import type {
   SampleResponse,
   BatchPredictRequest,
   BatchPredictResponse,
+  SHAPExplainRequest,
+  SHAPExplainResponse,
 } from '@/types/api'
 
 const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api/v1'
@@ -82,6 +84,11 @@ class ApiClient {
     const { data } = await this.client.post<BatchPredictResponse>('/predict/batch', request)
     return data
   }
+
+  async shapExplain(request: SHAPExplainRequest): Promise<SHAPExplainResponse> {
+    const { data } = await this.client.post<SHAPExplainResponse>('/explain/shap', request)
+    return data
+  }
 }
 
 export const api = new ApiClient()
@@ -95,4 +102,5 @@ export const apiEndpoints = {
   sampleWindows: (n?: number, meterIds?: string[], seed?: number) =>
     api.getSampleWindows(n, meterIds, seed),
   batchPredict: (request: BatchPredictRequest) => api.batchPredict(request),
+  shapExplain: (request: SHAPExplainRequest) => api.shapExplain(request),
 }
